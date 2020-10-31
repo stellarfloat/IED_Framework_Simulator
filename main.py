@@ -1,6 +1,7 @@
 import math
 import os
 import random
+from re import A
 import sys
 
 import pygame
@@ -11,9 +12,10 @@ from PyQt5 import uic
 from PyQt5.QtWidgets import *
 
 
+
 def add_ball(space):
-    mass = 0.1
-    radius = 14
+    mass = 2.7
+    radius = 20
     moment = pymunk.moment_for_circle(mass, 0, radius) # 1
     body = pymunk.Body(mass, moment) # 2
     x = random.randint(299, 301)
@@ -23,6 +25,7 @@ def add_ball(space):
     shape.elasticity = 0.7
     space.add(body, shape) # 5
     return shape
+
 
 def add_L(space):
     rotation_center_body = pymunk.Body(body_type = pymunk.Body.STATIC) # 1
@@ -38,9 +41,11 @@ def add_L(space):
     space.add(l1, l2, body, rotation_center_joint)
     return l1,l2
 
+
 def to_pygame(p):
     """Small hack to convert pymunk to pygame coordinates"""
     return int(p.x), int(-p.y+600)
+
 
 def create_box(space: pymunk.Space, pos, w, h, mass = 5.0, friction = 0.4, elasticity = 0.7, body_type = pymunk.Body.DYNAMIC) -> None:
     box_points = [(-w/2, -h/2), (-w/2, h/2), (w/2, h/2), (w/2, -h/2)]
@@ -52,21 +57,45 @@ def create_box(space: pymunk.Space, pos, w, h, mass = 5.0, friction = 0.4, elast
     poly.elasticity = elasticity
     space.add(body, poly)
 
-def create_frame(space: pymunk.Space, pos, E = 30, mass = 100.0, friction = 0.4, elasticity = 0.7, body_type = pymunk.Body.DYNAMIC) -> None:
+
+def create_frame(space: pymunk.Space, pos, params, mass = 1000.0, friction = 0.8, elasticity = 0.4, body_type = pymunk.Body.DYNAMIC) -> None:
+    A = params['A']
+    B = params['B']
+    C = params['C']
+    D = params['D']
+    E = params['E']
+    F = params['F']
+
+    ## Create base frame
     box_points = [(175, 0), (175, 174), (130, 174), (130, 24), (-145 + E, 24), (-145 + E, 124), (-175 + E, 124), (-175 + E, 24), (-175, 24), (-175, 0)]
-    moment = pymunk.moment_for_poly(mass, box_points)
-    body = pymunk.Body(mass, moment, body_type)
-    body.position = pymunk.Vec2d(pos)
-    frames = [[(175, 0), (175, 24), (-175, 24), (-175, 0)], [(175, 24), (175, 174), (130, 174), (130, 24)], [(-145 + E, 24), (-145 + E, 124), (-175 + E, 124), (-175 + E, 24)]]
+    moment_frame = pymunk.moment_for_poly(mass, box_points)
+    body_frame = pymunk.Body(mass, moment_frame, body_type)
+    body_frame.position = pymunk.Vec2d(pos)
+    frames = [[(175, 0), (175, 24), (-175, 24), (-175, 0)], [(175, 24), (175, 174), (130, 174), (130, 24)], [(-145 + E, 24), (-145 + E, 124), (-175 + E, 124), (-175 + E, 24)], [(130, 146), (130, 186)]]
     for frame in frames:
-        poly = pymunk.Poly(body, frame)
+        poly = pymunk.Poly(body_frame, frame)
         poly.friction = friction
         poly.elasticity = elasticity
         space.add(poly)
     else:
-        space.add(body)
+        space.add(body_frame)
+    
+    ## Create railplate
+    railplate_components = [[(250, 0), (250, 5), (-250, 5), (-250, 0)], [(-200, 0), (-200, 30)], [(150, 0), (150, 30)]]  # 500mm * 5mm, two stopper
+    moment_railplate = pymunk.moment_for_poly(10, railplate_components[0])         # need to calibrate mass
+    body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC) # need to calibrate mass
+    body_railplate.position = pymunk.Vec2d((pos[0] - (120 - B), pos[1] + 186)) # 186mm == base(24mm) + rail support(150mm) + hinge(12mm)
+    for component in railplate_components:
+        poly = pymunk.Poly(body_railplate, component)
+        poly.friction = friction
+        poly.elasticity = elasticity
+        space.add(poly)
+    else:
+        space.add(body_railplate)
+    rotation_center_joint = pymunk.PinJoint(body_frame, body_railplate, (130, 186), (250 - B, 0))
+    space.add(rotation_center_joint)
 
-
+#def create_railplate(space: pymunk.Space, pos, E = 30, mass = 1000.0, friction = 0.8, elasticity = 0.4, body_type = pymunk.Body.DYNAMIC) -> None:
 
 
 
@@ -83,7 +112,7 @@ class EnvironmentSetup(object):
     '''
     This class setups an environment for framework simulation.
     '''
-    def __init__(self, space: pymunk.Space, params = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0, 'F': 0}) -> None:
+    def __init__(self, space: pymunk.Space, params = {'A': 0, 'B': 100, 'C': 0, 'D': 0, 'E': 30, 'F': 0}) -> None:
         ## Base land
         land_body = pymunk.Body(body_type = pymunk.Body.STATIC)
         land_body.position = (320, 10)
@@ -92,7 +121,7 @@ class EnvironmentSetup(object):
         land.elasticity = 0.0
         space.add(land)
 
-        create_frame(space, (320, 28)) ## Base frame
+        create_frame(space, (320, 28), params) ## Base frame
         
 
 
@@ -145,7 +174,7 @@ class Simulator(object):
         balls = []
         
 
-        ticks_to_next_ball = 10
+        ticks_to_next_ball = 50
         ball_delay = ticks_to_next_ball
         while True:
             for event in pygame.event.get():
