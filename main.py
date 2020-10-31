@@ -44,7 +44,7 @@ def add_L(space):
 
 def to_pygame(p):
     """Small hack to convert pymunk to pygame coordinates"""
-    return int(p.x), int(-p.y+600)
+    return int(p.x), int(-p.y + HEIGHT)
 
 
 def create_box(space: pymunk.Space, pos, w, h, mass = 5.0, friction = 0.4, elasticity = 0.7, body_type = pymunk.Body.DYNAMIC) -> None:
@@ -59,12 +59,16 @@ def create_box(space: pymunk.Space, pos, w, h, mass = 5.0, friction = 0.4, elast
 
 
 def create_frame(space: pymunk.Space, pos, params, mass = 1000.0, friction = 0.8, elasticity = 0.4, body_type = pymunk.Body.DYNAMIC) -> None:
+    ## Load constants
     A = params['A']
     B = params['B']
     C = params['C']
     D = params['D']
     E = params['E']
     F = params['F']
+
+    ## Add collision filter 
+    collision_filter = pymunk.ShapeFilter(group=1)
 
     ## Create base frame
     box_points = [(175, 0), (175, 174), (130, 174), (130, 24), (-145 + E, 24), (-145 + E, 124), (-175 + E, 124), (-175 + E, 24), (-175, 24), (-175, 0)]
@@ -79,11 +83,15 @@ def create_frame(space: pymunk.Space, pos, params, mass = 1000.0, friction = 0.8
         space.add(poly)
     else:
         space.add(body_frame)
-    
+    servo_points = [(-175 + E, 84), (-175 + E, 114), (-175 + E - 11, 114), (-175 + E - 11, 84)]
+    poly_servo = pymunk.Poly(body_frame, servo_points)
+    poly_servo.filter = collision_filter # Disable collision for arms
+    space.add(poly_servo)
+
     ## Create railplate
     railplate_components = [[(250, 0), (250, 5), (-250, 5), (-250, 0)], [(-200, 0), (-200, 30)], [(150, 0), (150, 30)]]  # 500mm * 5mm, two stopper
     moment_railplate = pymunk.moment_for_poly(10, railplate_components[0])         # need to calibrate mass
-    body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC) # need to calibrate mass
+    body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC)        # need to calibrate mass
     body_railplate.position = pymunk.Vec2d((pos[0] - (120 - B), pos[1] + 186)) # 186mm == base(24mm) + rail support(150mm) + hinge(12mm)
     for component in railplate_components:
         poly = pymunk.Poly(body_railplate, component)
@@ -94,6 +102,21 @@ def create_frame(space: pymunk.Space, pos, params, mass = 1000.0, friction = 0.8
         space.add(body_railplate)
     rotation_center_joint = pymunk.PinJoint(body_frame, body_railplate, (130, 186), (250 - B, 0))
     space.add(rotation_center_joint)
+
+    ## Create servo & arms
+    body_lowerArm = pymunk.Body()
+    poly_lowerArm = pymunk.Segment(body_lowerArm, (-D, 0), (0, 0), 2)
+    poly_lowerArm.mass = 10  # need to calibrate mass
+    body_lowerArm.position = pymunk.Vec2d((pos[0] - (175 - E + 5.5), pos[1] + 104))
+    poly_lowerArm.filter = collision_filter # Disable collision for arms
+    space.add(body_lowerArm, poly_lowerArm)
+    joint_servo_lowerArm = pymunk.PinJoint(body_frame, body_lowerArm, (-175 + E - 5.5, 104), (0, 0))
+    space.add(joint_servo_lowerArm)
+    motor_servo = pymunk.SimpleMotor(body_frame, body_lowerArm, 0)
+    space.add(motor_servo)
+    motor_servo.rate = 1
+
+    
 
 #def create_railplate(space: pymunk.Space, pos, E = 30, mass = 1000.0, friction = 0.8, elasticity = 0.4, body_type = pymunk.Body.DYNAMIC) -> None:
 
@@ -112,7 +135,7 @@ class EnvironmentSetup(object):
     '''
     This class setups an environment for framework simulation.
     '''
-    def __init__(self, space: pymunk.Space, params = {'A': 0, 'B': 100, 'C': 0, 'D': 0, 'E': 30, 'F': 0}) -> None:
+    def __init__(self, space: pymunk.Space, params = {'A': 0, 'B': 100, 'C': 0, 'D': 50, 'E': 30, 'F': 0}) -> None:
         ## Base land
         land_body = pymunk.Body(body_type = pymunk.Body.STATIC)
         land_body.position = (320, 10)
@@ -121,7 +144,7 @@ class EnvironmentSetup(object):
         land.elasticity = 0.0
         space.add(land)
 
-        create_frame(space, (320, 28), params) ## Base frame
+        create_frame(space, (320, 28), params)
         
 
 
