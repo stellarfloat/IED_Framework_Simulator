@@ -64,7 +64,12 @@ def calc_joint_coords(A, B, C, D, E, pos = (0, 0)) -> list:
     if d > C + D:
         raise ValueError('Impossible configuration.')
     else:
-        coords_lowerArm_upperArm = min(circle_intersection(coords_upperArm_railplate, C, coords_servo_lowerArm, D), key=lambda x: x[0])
+        try:
+            coords_cicle_intersection = circle_intersection(coords_upperArm_railplate, C, coords_servo_lowerArm, D)
+        except ValueError:
+            raise ValueError('Impossible configuration.')
+        else:    
+            coords_lowerArm_upperArm = min(coords_cicle_intersection, key=lambda x: x[0])
     return [coords_upperArm_railplate, coords_lowerArm_upperArm]
 
 
@@ -84,23 +89,26 @@ class EnvironmentSetup(object):
     This class setups an environment for framework simulation.
     '''
     def __init__(self, space: pymunk.Space, params = {'A': 40, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}, objects = []) -> None:
-        print('EnvironmentSetup called')
+        print('EnvironmentSetup called') # debug
         ## Track objects
         self.objects = objects
-        print('bodies', space._bodies, '\n')
-        print('shapes', space._shapes, '\n')
-        print('constraints', space._constraints, '\n')
+        print(f'bodies: {space._bodies}\nbodies len: {len(space._bodies)}') # debug
+        print(f'shapes: {space._shapes}\nshapes len: {len(space._shapes)}') # debug
+        print(f'constraints: {space._constraints}\nconstraints len: {len(space._constraints)}') # debug
         ## Reset Environment
         try:
             #space.remove(self.objects)
-            print('self.objects', self.objects, '\n')
-            remove_counter = 0
+            print('self.objects len (before setup)', len(self.objects), '\n') # debug
+            remove_counter = 0 # debug
             for obj in self.objects:
                 print(f'remove -> {obj}')
                 space.remove(obj)
+                #self.objects.remove(obj)
                 remove_counter += 1
             else:
-                print(f'Removed {remove_counter} items.')
+                self.objects = []
+                print(f'Removed {remove_counter} items.') # debug
+                print('self.objects (after removal)', self.objects, '\n') # debug
         except AttributeError as e:
             print(f'AttributeError: {e}')
         
@@ -210,6 +218,8 @@ class EnvironmentSetup(object):
         space.add(joint_upperArm_railplate)
         self.objects += [joint_upperArm_railplate]
 
+        print('self.objects len (after setup)', len(self.objects), '\n') # debug
+
 
 class GUI(QMainWindow, UI):
     '''
@@ -236,6 +246,7 @@ class Simulator(object):
         
         # Pymunk initialize
         space = pymunk.Space()
+        self.space = space
         space.gravity = (0.0, -9806.65) ## -9.8m/s^2
         draw_options = pymunk.pygame_util.DrawOptions(screen)
 
@@ -243,14 +254,15 @@ class Simulator(object):
         setup = EnvironmentSetup(space)
 
 
-        #lines = add_L(space)
         balls = []
-        
 
         ticks_to_next_ball = 50
         ball_delay = ticks_to_next_ball
+        test1 = False
+        test2 = False
         lap = time.time()
-        delete = True
+        servo_stall = False
+        servo_impulse_prev = 0
         while True:
             for event in pygame.event.get():
                 if event.type == QUIT:
@@ -268,12 +280,31 @@ class Simulator(object):
                 space.step(1/10000.0)
 
             setup.motor_servo.rate = 5 * ((round(time.time()) % 2) * 2 - 1)
-            #print(setup.motor_servo.impulse) # Servo load
-            if round(time.time() - lap) % 5 == 0 and delete == True:  #and delete == True
-                #print(setup.objects)
-                setup = EnvironmentSetup(space, objects = setup.objects)
-                delete = False
+            
+            # Servo stall detection
+            if math.isclose(setup.motor_servo.impulse, 18385.0, rel_tol=10e-2):
+                if servo_stall == True and servo_impulse_prev == setup.motor_servo.impulse:
+                    print(f'Servo Stall | t = {round(time.time() - lap, 2)}')
+                    servo_stall = False
+            else:
+                servo_stall = True
+            
+            servo_impulse_prev = setup.motor_servo.impulse
+            
+            if round(time.time() - lap) > 1:
+                if test1 == False:
+                    print('##########Test 1##########')
+                    setup = EnvironmentSetup(space, params = {'A': 0, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}, objects = setup.objects)
+                    test1 = True
+                    print('Test 1 OK')
+            if round(time.time() - lap) > 2:
+                if test2 == False:
+                    print('##########Test 2##########')
+                    setup = EnvironmentSetup(space, params = {'A': 80, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}, objects = setup.objects)
+                    test2 = True
+                    print('Test 2 OK')
 
+            
             screen.fill((255,255,255))
 
             balls_to_remove = []
@@ -294,8 +325,9 @@ class Simulator(object):
 
 
 if __name__ == '__main__':
-    Simulator()
-
+    simulator = Simulator()
+    
+    
     # TODO: Multiprocessing
     # app = QApplication(sys.argv) 
     # controlWindow = GUI()
