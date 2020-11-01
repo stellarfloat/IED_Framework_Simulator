@@ -1,8 +1,8 @@
 import math
 import os
 import random
-from re import A
 import sys
+import time
 
 import pygame
 import pymunk
@@ -10,7 +10,6 @@ import pymunk.pygame_util
 from pygame.locals import *
 from PyQt5 import uic
 from PyQt5.QtWidgets import *
-
 
 '''
 units
@@ -84,7 +83,27 @@ class EnvironmentSetup(object):
     '''
     This class setups an environment for framework simulation.
     '''
-    def __init__(self, space: pymunk.Space, params = {'A': 40, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}) -> None:
+    def __init__(self, space: pymunk.Space, params = {'A': 40, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}, objects = []) -> None:
+        print('EnvironmentSetup called')
+        ## Track objects
+        self.objects = objects
+        print('bodies', space._bodies, '\n')
+        print('shapes', space._shapes, '\n')
+        print('constraints', space._constraints, '\n')
+        ## Reset Environment
+        try:
+            #space.remove(self.objects)
+            print('self.objects', self.objects, '\n')
+            remove_counter = 0
+            for obj in self.objects:
+                print(f'remove -> {obj}')
+                space.remove(obj)
+                remove_counter += 1
+            else:
+                print(f'Removed {remove_counter} items.')
+        except AttributeError as e:
+            print(f'AttributeError: {e}')
+        
         ## Base land
         land_body = pymunk.Body(body_type = pymunk.Body.STATIC)
         land_body.position = (320, 10)
@@ -92,6 +111,7 @@ class EnvironmentSetup(object):
         land.friction = 10
         land.elasticity = 0.0
         space.add(land)
+        self.objects += [land] #[land_body, land]
 
         ## Temporary constants
         pos = (320, 26)
@@ -125,58 +145,70 @@ class EnvironmentSetup(object):
             poly.friction = friction
             poly.elasticity = elasticity
             space.add(poly)
+            self.objects += [poly]
         else:
             space.add(body_frame)
+            self.objects += [body_frame]
         servo_points = [(-175 + E, 84), (-175 + E, 114), (-175 + E - 11, 114), (-175 + E - 11, 84)]
         poly_servo = pymunk.Poly(body_frame, servo_points)
         poly_servo.filter = collision_filter # Disable collision for arms
         space.add(poly_servo)
+        self.objects += [poly_servo]
 
         ## Create railplate
         railplate_components = [[(250, 0), (250, 5), (-250, 5), (-250, 0)], [(-200, 0), (-200, 30)], [(150, 0), (150, 30)]]  # 500mm * 5mm, two stopper
-        moment_railplate = pymunk.moment_for_poly(100, railplate_components[0])         # need to calibrate mass
-        body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC)        # need to calibrate mass
-        body_railplate.position = pymunk.Vec2d((pos[0] - (120 - B), pos[1] + 186)) # 186mm == base(24mm) + rail support(150mm) + hinge(12mm)
+        moment_railplate = pymunk.moment_for_poly(100, railplate_components[0])       # TODO: need to calibrate mass
+        body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC)       # TODO: need to calibrate mass
+        body_railplate.position = pymunk.Vec2d((pos[0] - (120 - B), pos[1] + 186))    # 186mm == base(24mm) + rail support(150mm) + hinge(12mm)
         for component in railplate_components:
             poly = pymunk.Poly(body_railplate, component)
             poly.friction = friction
             poly.elasticity = 0.8 #elasticity
             poly.filter = collision_filter # Disable collision between railplate and upperArm
             space.add(poly)
+            self.objects += [poly]
         else:
             space.add(body_railplate)
+            self.objects += [body_railplate]
         rotation_center_joint = pymunk.PinJoint(body_frame, body_railplate, (130, 186), (250 - B, 0))
         space.add(rotation_center_joint)
+        self.objects += [rotation_center_joint]
 
         ## Create servo & arms
         ### lowerArm
         pos_servo_lowerArm = (pos[0] - (175 - E + 5.5), pos[1] + 104)
         body_lowerArm = pymunk.Body()
         poly_lowerArm = pymunk.Segment(body_lowerArm, joint_coords[1], pos_servo_lowerArm, 2)
-        poly_lowerArm.mass = 10  # need to calibrate mass
+        poly_lowerArm.mass = 10  # TODO:  need to calibrate mass
         poly_lowerArm.filter = collision_filter # Disable collision for arms
         space.add(body_lowerArm, poly_lowerArm)
+        self.objects += [body_lowerArm, poly_lowerArm]
         ### servo-lowerArm joint
         joint_servo_lowerArm = pymunk.PinJoint(body_frame, body_lowerArm, (-175 + E - 5.5, 104), pos_servo_lowerArm)
         space.add(joint_servo_lowerArm)
+        self.objects += [joint_servo_lowerArm]
         ### servo
         motor_servo = pymunk.SimpleMotor(body_frame, body_lowerArm, 0)
         space.add(motor_servo)
+        self.objects += [motor_servo]
         motor_servo.max_force = 183850000 # calibrated to MG90S(1.875kg/cm)
         motor_servo.rate = degree_to_radian(0)
         self.motor_servo = motor_servo
         ### upperArm
         body_upperArm = pymunk.Body()
         poly_upperArm = pymunk.Segment(body_upperArm, joint_coords[0], joint_coords[1], 2)
-        poly_upperArm.mass = 10  # need to calibrate mass)
+        poly_upperArm.mass = 10  # TODO: need to calibrate mass)
         poly_upperArm.filter = collision_filter # Disable collision for arms
         space.add(body_upperArm, poly_upperArm)
+        self.objects += [body_upperArm, poly_upperArm]
         ### lowerArm-upperArm joint
         joint_lowerArm_upperArm = pymunk.PinJoint(body_lowerArm, body_upperArm, joint_coords[1], joint_coords[1])
         space.add(joint_lowerArm_upperArm)
+        self.objects += [joint_lowerArm_upperArm]
         ### upperArm-railplate joint
         joint_upperArm_railplate = pymunk.PinJoint(body_upperArm, body_railplate, joint_coords[0], (-250 + A, 0))
         space.add(joint_upperArm_railplate)
+        self.objects += [joint_upperArm_railplate]
 
 
 class GUI(QMainWindow, UI):
@@ -217,24 +249,30 @@ class Simulator(object):
 
         ticks_to_next_ball = 50
         ball_delay = ticks_to_next_ball
+        lap = time.time()
+        delete = True
         while True:
             for event in pygame.event.get():
                 if event.type == QUIT:
                     sys.exit(0)
                 elif event.type == KEYDOWN and event.key == K_ESCAPE:
                     sys.exit(0)
-
-            
-            ball_delay -= 1
-            if ball_delay <= 0:
-                ball_delay = ticks_to_next_ball
-                ball_shape = add_ball(space)
-                balls.append(ball_shape)
+     
+            # ball_delay -= 1
+            # if ball_delay <= 0:
+            #     ball_delay = ticks_to_next_ball
+            #     ball_shape = add_ball(space)
+            #     balls.append(ball_shape)
             
             for _ in range(50):
                 space.step(1/10000.0)
 
-            #print(setup.motor_servo.impulse) # Servo load 
+            setup.motor_servo.rate = 5 * ((round(time.time()) % 2) * 2 - 1)
+            #print(setup.motor_servo.impulse) # Servo load
+            if round(time.time() - lap) % 5 == 0 and delete == True:  #and delete == True
+                #print(setup.objects)
+                setup = EnvironmentSetup(space, objects = setup.objects)
+                delete = False
 
             screen.fill((255,255,255))
 
