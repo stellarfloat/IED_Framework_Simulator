@@ -18,19 +18,6 @@ mass: grams
 1px = 1mm
 '''
 
-def add_ball(space):
-    mass = 2.7
-    radius = 20
-    moment = pymunk.moment_for_circle(mass, 0, radius) # 1
-    body = pymunk.Body(mass, moment) # 2
-    x = random.randint(299, 301)
-    body.position = x, 550 # 3
-    shape = pymunk.Circle(body, radius) # 4
-    shape.friction = 0.5
-    shape.elasticity = 0.9
-    space.add(body, shape) # 5
-    return shape
-
 
 def to_pygame(p):
     """Small hack to convert pymunk to pygame coordinates"""
@@ -221,6 +208,19 @@ class EnvironmentSetup(object):
         print('self.objects len (after setup)', len(self.objects), '\n') # debug
 
 
+    def add_ball(self, space: pymunk.Space, pos, radius = 20, mass = 2.7, friction = 0.5, elasticity = 0.9):
+        moment = pymunk.moment_for_circle(mass, 0, radius)
+        body = pymunk.Body(mass, moment)
+        body.position = pymunk.Vec2d(pos)
+        shape = pymunk.Circle(body, radius)
+        shape.friction = friction
+        shape.elasticity = elasticity
+        space.add(body, shape)
+        return shape
+
+    
+
+
 class GUI(QMainWindow, UI):
     '''
     This class manages GUI components of simulator.
@@ -230,7 +230,16 @@ class GUI(QMainWindow, UI):
         super().__init__()
         self.setupUi(self)
         ## UI connect
-        pass
+        self.button_apply.clicked.connect(self.test)
+        self.move(1285, 262)
+
+        
+    def test(self):
+        print('button')
+
+    def closeEvent(self, event):
+        sys.exit(0)
+
 
 
 class Simulator(object):
@@ -252,7 +261,7 @@ class Simulator(object):
 
         # Framework environment setup
         setup = EnvironmentSetup(space)
-
+        setup.add_ball(space, (320, 236))
 
         balls = []
 
@@ -263,17 +272,13 @@ class Simulator(object):
         lap = time.time()
         servo_stall = False
         servo_impulse_prev = 0
-        while True:
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    sys.exit(0)
-                elif event.type == KEYDOWN and event.key == K_ESCAPE:
-                    sys.exit(0)
-     
+
+        running = True
+        while running:
             # ball_delay -= 1
             # if ball_delay <= 0:
             #     ball_delay = ticks_to_next_ball
-            #     ball_shape = add_ball(space)
+            #     ball_shape = setup.add_ball(space, (320, 400))
             #     balls.append(ball_shape)
             
             for _ in range(50):
@@ -290,7 +295,7 @@ class Simulator(object):
                 servo_stall = True
             
             servo_impulse_prev = setup.motor_servo.impulse
-            
+            '''
             if round(time.time() - lap) > 1:
                 if test1 == False:
                     print('##########Test 1##########')
@@ -303,7 +308,7 @@ class Simulator(object):
                     setup = EnvironmentSetup(space, params = {'A': 80, 'B': 132, 'C': 76, 'D': 60, 'E': 37, 'F': 0}, objects = setup.objects)
                     test2 = True
                     print('Test 2 OK')
-
+            '''
             
             screen.fill((255,255,255))
 
@@ -322,10 +327,24 @@ class Simulator(object):
             clock.tick(FPS)
 
 
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    running = False
+                    sys.exit(0)
+                elif event.type == KEYDOWN and event.key == K_ESCAPE:
+                    running = False
+                    sys.exit(0)
+
+
+
 
 
 if __name__ == '__main__':
-    simulator = Simulator()
+    app = QApplication(sys.argv) 
+    controlWindow = GUI()
+    controlWindow.show()
+    Simulator()
+    app.exec_()
     
     
     # TODO: Multiprocessing
