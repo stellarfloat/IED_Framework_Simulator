@@ -1,0 +1,4 @@
+pygame==2.0.0
+pymunk==5.7.0
+PyQt5==5.15.1
+pathos
