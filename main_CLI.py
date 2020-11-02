@@ -67,7 +67,7 @@ def calc_joint_coords(A, B, C, D, E, pos = (0, 0)) -> list:
 
 def calc_effective_ball_r(rail_margin, ball_r = 20):
     '''Calculates effective ball radius'''
-    return ball_r * math.sqrt(1 - (rail_margin / 2 + 2.5) / (ball_r + 2.5))
+    return ball_r * math.sqrt(1 - ((rail_margin / 2 + 2.5) / (ball_r + 2.5))**2)
 
 
 
@@ -324,7 +324,7 @@ if __name__ == '__main__':
         raise ValueError('인자 형식이 맞지 않습니다.')
     if args[6] > args[7] or args[6] < 0 or args[7] > 180:
         raise ValueError('각도 범위가 올바르지 않습니다.')
-    if args[9] > 40:
+    if args[9] >= 40:
         raise ValueError('레일 간격이 올바르지 않습니다.')
 
     params = {'A': args[0], 'B': args[1], 'C': args[2], 'D': args[3], 'E': args[4], 'F': args[5]}
