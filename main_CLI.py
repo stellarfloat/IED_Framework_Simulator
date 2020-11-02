@@ -48,7 +48,7 @@ def calc_joint_coords(A, B, C, D, E, pos = (0, 0)) -> list:
     '''Calculates coordinates of upperArm_railplate / lowerArm_upperArm joint.'''
     coords_upperArm_railplate = (pos[0] + (-370 + B + A), pos[1] + (186))
     coords_servo_lowerArm = (pos[0] + (-175 + E - 5.5), pos[1] + (104))
-    d = math.dist(coords_upperArm_railplate, coords_servo_lowerArm)
+    d = math.sqrt(sum((px - qx) ** 2.0 for px, qx in zip(coords_upperArm_railplate, coords_servo_lowerArm)))
     if d > C + D:
         raise ValueError('주어진 서보 암 길이로 시뮬레이션을 시작할 수 없습니다.')
     else:
@@ -317,6 +317,9 @@ if __name__ == '__main__':
         raise ValueError('인자 개수가 맞지 않습니다.')
     try:
         args = tuple(map(float, sys.argv[1:]))
+        for arg in args:
+            if arg < 0:
+                raise ValueError('잘못된 인자 값이 있습니다.')
     except ValueError:
         raise ValueError('인자 형식이 맞지 않습니다.')
     if args[6] > args[7] or args[6] < 0 or args[7] > 180:
