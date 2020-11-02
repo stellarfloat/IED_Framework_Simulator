@@ -319,7 +319,7 @@ if __name__ == '__main__':
         args = tuple(map(float, sys.argv[1:]))
     except ValueError:
         raise ValueError('인자 형식이 맞지 않습니다.')
-    if args[6] > args[6] or args[6] < 0 or args[6] > 180:
+    if args[6] > args[7] or args[6] < 0 or args[7] > 180:
         raise ValueError('각도 범위가 올바르지 않습니다.')
     if args[9] > 40:
         raise ValueError('레일 간격이 올바르지 않습니다.')
