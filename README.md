@@ -1,4 +1,6 @@
 # IED_Framework_Simulator
+
+[![demo](https://user-images.githubusercontent.com/66378218/97863432-4fe31680-1d4a-11eb-8104-a37e7409933f.png)](https://youtu.be/MlzmldWqsnA)
 2020-2 창업연계공학설계입문의 프로젝트의 프레임워크를 컴퓨터로 시뮬레이션
 하는 소프트웨어입니다.
 
