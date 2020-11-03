@@ -121,9 +121,9 @@ class EnvironmentSetup(object):
 
         ## Temporary constants
         pos = (320, 26)
-        mass = 1000.0
+        mass = 700
         friction = 0.8
-        elasticity = 0.2
+        elasticity = 0.1
         body_type = pymunk.Body.DYNAMIC
 
         ## Load constants
@@ -164,8 +164,8 @@ class EnvironmentSetup(object):
 
         ## Create railplate
         railplate_components = [[(250, 0), (250, 5), (-250, 5), (-250, 0)], [(-200, 0), (-200, 30)], [(150, 0), (150, 30)]]  # 500mm * 5mm, two stopper
-        moment_railplate = pymunk.moment_for_poly(100, railplate_components[0])       # TODO: need to calibrate mass
-        body_railplate = pymunk.Body(10, moment_railplate, pymunk.Body.DYNAMIC)       # TODO: need to calibrate mass
+        moment_railplate = pymunk.moment_for_poly(104, railplate_components[0])       
+        body_railplate = pymunk.Body(104, moment_railplate, pymunk.Body.DYNAMIC)       
         body_railplate.position = pymunk.Vec2d((pos[0] - (120 - B), pos[1] + 186))    # 186mm == base(24mm) + rail support(150mm) + hinge(12mm)
         for component in railplate_components:
             poly = pymunk.Poly(body_railplate, component)
@@ -186,7 +186,7 @@ class EnvironmentSetup(object):
         pos_servo_lowerArm = (pos[0] - (175 - E + 5.5), pos[1] + 104)
         body_lowerArm = pymunk.Body()
         poly_lowerArm = pymunk.Segment(body_lowerArm, joint_coords[1], pos_servo_lowerArm, 2)
-        poly_lowerArm.mass = 10  # TODO:  need to calibrate mass
+        poly_lowerArm.mass = 20  # TODO:  need to calibrate mass
         poly_lowerArm.filter = collision_filter # Disable collision for arms
         space.add(body_lowerArm, poly_lowerArm)
         self.objects += [body_lowerArm, poly_lowerArm]
@@ -204,7 +204,7 @@ class EnvironmentSetup(object):
         ### upperArm
         body_upperArm = pymunk.Body()
         poly_upperArm = pymunk.Segment(body_upperArm, joint_coords[0], joint_coords[1], 2)
-        poly_upperArm.mass = 10  # TODO: need to calibrate mass)
+        poly_upperArm.mass = 20  # TODO: need to calibrate mass)
         poly_upperArm.filter = collision_filter # Disable collision for arms
         space.add(body_upperArm, poly_upperArm)
         self.objects += [body_upperArm, poly_upperArm]
@@ -220,7 +220,7 @@ class EnvironmentSetup(object):
         ###print('self.objects len (after setup)', len(self.objects), '\n') # debug
 
 
-    def add_ball(self, space: pymunk.Space, pos, radius = 20, mass = 2.7, friction = 0.5, elasticity = 0.9):
+    def add_ball(self, space: pymunk.Space, pos, radius = 20, mass = 2.7, friction = 0.5, elasticity = 0.6):
         moment = pymunk.moment_for_circle(mass, 0, radius)
         body = pymunk.Body(mass, moment)
         body.position = pymunk.Vec2d(pos)
